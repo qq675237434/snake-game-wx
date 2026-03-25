@@ -15,6 +15,7 @@ const ObstacleManager = require('./obstacle');
 const { SkinManager } = require('./skin');
 const UI = require('./ui');
 const AudioManager = require('./audio');
+const CommentManager = require('./comment');
 
 /**
  * 游戏主类
@@ -57,6 +58,10 @@ class Game {
     this.skinManager = new SkinManager();
     this.ui = new UI();
     this.audio = new AudioManager();
+    this.commentManager = new CommentManager();
+
+    /** @type {string} 当前评论输入文字 */
+    this._commentInput = '';
 
     // 触摸状态
     this._touchStartX = 0;
@@ -147,6 +152,48 @@ class Game {
         else if (btnId === 'menu') this._returnToMenu();
         else if (btnId === 'share') this._shareResult();
         else if (btnId === 'revive') this._tryRevive();
+        else if (btnId === 'comments') {
+          this.commentManager.resetPage();
+          this.state = GameState.COMMENTS;
+          this._render();
+        }
+        break;
+
+      case GameState.COMMENTS:
+        if (btnId === 'comment_back') {
+          this.state = GameState.GAME_OVER;
+          this._render();
+        } else if (btnId === 'comment_prev') {
+          this.commentManager.prevPage();
+          this._render();
+        } else if (btnId === 'comment_next') {
+          this.commentManager.nextPage();
+          this._render();
+        } else if (btnId === 'write_comment') {
+          this._commentInput = '';
+          this.state = GameState.WRITING_COMMENT;
+          this._render();
+          this._showKeyboard();
+        } else if (btnId.startsWith('like_')) {
+          this.commentManager.toggleLike(btnId.replace('like_', ''));
+          this._render();
+        }
+        break;
+
+      case GameState.WRITING_COMMENT:
+        if (btnId === 'comment_cancel') {
+          this._commentInput = '';
+          this.state = GameState.COMMENTS;
+          this._render();
+        } else if (btnId === 'comment_publish') {
+          this.commentManager.addComment(this._commentInput, this.score, this.currentDifficulty);
+          this._commentInput = '';
+          this.commentManager.resetPage();
+          this.state = GameState.COMMENTS;
+          this._render();
+        } else if (btnId === 'comment_input') {
+          this._showKeyboard();
+        }
         break;
     }
   }
@@ -299,6 +346,32 @@ class Game {
     });
   }
 
+  /** @private 弹出微信键盘输入评论 */
+  _showKeyboard() {
+    wx.showKeyboard({
+      defaultValue: this._commentInput || '',
+      maxLength: 50,
+      multiple: false,
+      confirmHold: false,
+      confirmType: 'done'
+    });
+
+    wx.onKeyboardInput(res => {
+      this._commentInput = res.value || '';
+      this._render();
+    });
+
+    wx.onKeyboardConfirm(res => {
+      this._commentInput = res.value || '';
+      this._render();
+    });
+
+    wx.onKeyboardComplete(res => {
+      this._commentInput = res.value || '';
+      this._render();
+    });
+  }
+
   // ========================================
   // 游戏循环
   // ========================================
@@ -370,6 +443,15 @@ class Game {
 
       case GameState.SKIN_SELECT:
         this.ui.drawSkinSelect(ctx, this.skinManager);
+        break;
+
+      case GameState.COMMENTS:
+        this.ui.drawComments(ctx, this.commentManager);
+        break;
+
+      case GameState.WRITING_COMMENT:
+        this.ui.drawComments(ctx, this.commentManager);
+        this.ui.drawWritingComment(ctx, this._commentInput);
         break;
 
       case GameState.PLAYING:
