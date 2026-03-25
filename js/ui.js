@@ -6,7 +6,7 @@
 
 const {
   SCREEN_WIDTH, SCREEN_HEIGHT, GRID_SIZE,
-  LAYOUT, COLORS, DIFFICULTY_NAMES, GameState
+  LAYOUT, COLORS, DIFFICULTY_NAMES, GameState, COMMENT_CONFIG
 } = require('./config');
 
 /**
@@ -468,6 +468,15 @@ class UI {
     ctx.fillText('📤 分享给好友', centerX, y + btnH * 0.65);
     this._addButton('share', btnX, y, btnW, btnH);
 
+    // 查看评论按钮
+    y += btnH + SCREEN_WIDTH * 0.04;
+    ctx.fillStyle = 'rgba(255, 152, 0, 0.15)';
+    this._roundRect(ctx, btnX, y, btnW, btnH, 10);
+    ctx.fillStyle = '#FF9800';
+    ctx.font = Math.floor(SCREEN_WIDTH * 0.045) + 'px sans-serif';
+    ctx.fillText('💬 查看评论', centerX, y + btnH * 0.65);
+    this._addButton('comments', btnX, y, btnW, btnH);
+
     // 【广告预留】Banner 广告位置标记
     // TODO: 上线后在此区域下方展示 Banner 广告
     // wx.createBannerAd({ adUnitId: AD_CONFIG.BANNER_AD_UNIT_ID, ... })
@@ -534,6 +543,246 @@ class UI {
     ctx.quadraticCurveTo(x, y, x + r, y);
     ctx.closePath();
     ctx.fill();
+  }
+
+  // ========================================
+  // 评论列表界面
+  // ========================================
+
+  /**
+   * 绘制评论列表页
+   * @param {CanvasRenderingContext2D} ctx
+   * @param {CommentManager} commentManager
+   */
+  drawComments(ctx, commentManager) {
+    ctx.fillStyle = COLORS.BACKGROUND;
+    ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+
+    const centerX = SCREEN_WIDTH / 2;
+    const margin = SCREEN_WIDTH * 0.05;
+    let y = SCREEN_HEIGHT * 0.04;
+
+    // 标题栏
+    ctx.fillStyle = COLORS.UI.TITLE;
+    ctx.font = 'bold ' + Math.floor(SCREEN_WIDTH * 0.06) + 'px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('💬 玩家评论 (' + commentManager.totalCount + ')', centerX, y + SCREEN_WIDTH * 0.06);
+    y += SCREEN_WIDTH * 0.1;
+
+    // 写评论按钮
+    const writeBtnW = SCREEN_WIDTH * 0.4;
+    const writeBtnH = SCREEN_WIDTH * 0.1;
+    const writeBtnX = SCREEN_WIDTH - margin - writeBtnW;
+    ctx.fillStyle = '#4CAF50';
+    this._roundRect(ctx, writeBtnX, y, writeBtnW, writeBtnH, 6);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold ' + Math.floor(SCREEN_WIDTH * 0.035) + 'px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('✏️ 写评论', writeBtnX + writeBtnW / 2, y + writeBtnH * 0.65);
+    this._addButton('write_comment', writeBtnX, y, writeBtnW, writeBtnH);
+    y += writeBtnH + SCREEN_WIDTH * 0.04;
+
+    // 评论列表
+    const comments = commentManager.getPageComments();
+    const itemH = SCREEN_WIDTH * 0.2;
+    const listW = SCREEN_WIDTH - margin * 2;
+
+    if (comments.length === 0) {
+      ctx.fillStyle = COLORS.UI.SUBTITLE;
+      ctx.font = Math.floor(SCREEN_WIDTH * 0.04) + 'px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('暂无评论，快来发第一条吧！', centerX, y + SCREEN_WIDTH * 0.15);
+    } else {
+      comments.forEach((comment, idx) => {
+        const itemY = y + idx * (itemH + SCREEN_WIDTH * 0.02);
+        if (itemY + itemH > SCREEN_HEIGHT - SCREEN_WIDTH * 0.2) return; // 超出屏幕不绘制
+
+        // 卡片背景
+        ctx.fillStyle = 'rgba(255,255,255,0.05)';
+        this._roundRect(ctx, margin, itemY, listW, itemH, 8);
+        ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        const textX = margin + SCREEN_WIDTH * 0.04;
+        const isLiked = commentManager.isLiked(comment.id);
+
+        // 昵称 + 分数
+        ctx.fillStyle = '#FF9800';
+        ctx.font = 'bold ' + Math.floor(SCREEN_WIDTH * 0.033) + 'px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(comment.nickname, textX, itemY + itemH * 0.25);
+
+        // 分数徽章
+        const scoreText = comment.score + '分 · ' + (DIFFICULTY_NAMES[comment.difficulty] || {}).text;
+        ctx.fillStyle = COLORS.UI.SUBTITLE;
+        ctx.font = Math.floor(SCREEN_WIDTH * 0.025) + 'px sans-serif';
+        ctx.fillText(scoreText, textX + SCREEN_WIDTH * 0.3, itemY + itemH * 0.25);
+
+        // 评论内容
+        ctx.fillStyle = COLORS.UI.TITLE;
+        ctx.font = Math.floor(SCREEN_WIDTH * 0.035) + 'px sans-serif';
+        ctx.fillText(comment.content, textX, itemY + itemH * 0.55);
+
+        // 时间
+        ctx.fillStyle = COLORS.UI.SUBTITLE;
+        ctx.font = Math.floor(SCREEN_WIDTH * 0.023) + 'px sans-serif';
+        ctx.fillText(commentManager.formatTime(comment.time), textX, itemY + itemH * 0.8);
+
+        // 点赞按钮
+        const likeX = margin + listW - SCREEN_WIDTH * 0.18;
+        const likeY = itemY + itemH * 0.55;
+        const likeW = SCREEN_WIDTH * 0.15;
+        const likeH = SCREEN_WIDTH * 0.08;
+
+        ctx.fillStyle = isLiked ? 'rgba(244,67,54,0.2)' : 'rgba(255,255,255,0.08)';
+        this._roundRect(ctx, likeX, likeY, likeW, likeH, 4);
+
+        ctx.fillStyle = isLiked ? '#F44336' : COLORS.UI.SUBTITLE;
+        ctx.font = Math.floor(SCREEN_WIDTH * 0.028) + 'px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText((isLiked ? '❤️ ' : '🤍 ') + comment.likes, likeX + likeW / 2, likeY + likeH * 0.68);
+        this._addButton('like_' + comment.id, likeX, likeY, likeW, likeH);
+      });
+    }
+
+    // 底部导航栏
+    const navY = SCREEN_HEIGHT - SCREEN_WIDTH * 0.16;
+    const navH = SCREEN_WIDTH * 0.1;
+    const navBtnW = SCREEN_WIDTH * 0.22;
+
+    // 上一页
+    if (commentManager.page > 0) {
+      ctx.fillStyle = 'rgba(255,255,255,0.1)';
+      this._roundRect(ctx, margin, navY, navBtnW, navH, 6);
+      ctx.fillStyle = COLORS.UI.TITLE;
+      ctx.font = Math.floor(SCREEN_WIDTH * 0.035) + 'px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('◀ 上一页', margin + navBtnW / 2, navY + navH * 0.65);
+      this._addButton('comment_prev', margin, navY, navBtnW, navH);
+    }
+
+    // 页码
+    ctx.fillStyle = COLORS.UI.SUBTITLE;
+    ctx.font = Math.floor(SCREEN_WIDTH * 0.03) + 'px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText((commentManager.page + 1) + '/' + commentManager.totalPages, centerX, navY + navH * 0.65);
+
+    // 下一页
+    if (commentManager.page < commentManager.totalPages - 1) {
+      const nextX = SCREEN_WIDTH - margin - navBtnW;
+      ctx.fillStyle = 'rgba(255,255,255,0.1)';
+      this._roundRect(ctx, nextX, navY, navBtnW, navH, 6);
+      ctx.fillStyle = COLORS.UI.TITLE;
+      ctx.font = Math.floor(SCREEN_WIDTH * 0.035) + 'px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('下一页 ▶', nextX + navBtnW / 2, navY + navH * 0.65);
+      this._addButton('comment_next', nextX, navY, navBtnW, navH);
+    }
+
+    // 返回按钮
+    const backY = SCREEN_HEIGHT - SCREEN_WIDTH * 0.05 - navH;
+    const backW = SCREEN_WIDTH * 0.35;
+    const backX = (SCREEN_WIDTH - backW) / 2;
+    ctx.fillStyle = '#FF9800';
+    this._roundRect(ctx, backX, navY + navH + SCREEN_WIDTH * 0.02, backW, navH, 6);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold ' + Math.floor(SCREEN_WIDTH * 0.035) + 'px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('返回', centerX, navY + navH + SCREEN_WIDTH * 0.02 + navH * 0.65);
+    this._addButton('comment_back', backX, navY + navH + SCREEN_WIDTH * 0.02, backW, navH);
+  }
+
+  // ========================================
+  // 评论输入界面（引导弹出键盘）
+  // ========================================
+
+  /**
+   * 绘制写评论提示界面
+   * @param {CanvasRenderingContext2D} ctx
+   * @param {string} inputText - 当前输入文字
+   */
+  drawWritingComment(ctx, inputText) {
+    // 半透明遮罩
+    ctx.fillStyle = COLORS.UI.OVERLAY;
+    ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+
+    const centerX = SCREEN_WIDTH / 2;
+    const boxW = SCREEN_WIDTH * 0.85;
+    const boxH = SCREEN_WIDTH * 0.55;
+    const boxX = (SCREEN_WIDTH - boxW) / 2;
+    const boxY = SCREEN_HEIGHT * 0.2;
+
+    // 弹框背景
+    ctx.fillStyle = '#1a1a2e';
+    this._roundRect(ctx, boxX, boxY, boxW, boxH, 12);
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // 标题
+    ctx.fillStyle = COLORS.UI.TITLE;
+    ctx.font = 'bold ' + Math.floor(SCREEN_WIDTH * 0.05) + 'px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('✏️ 写评论', centerX, boxY + boxW * 0.1);
+
+    // 输入框显示区域
+    const inputX = boxX + SCREEN_WIDTH * 0.04;
+    const inputY = boxY + boxW * 0.15;
+    const inputW = boxW - SCREEN_WIDTH * 0.08;
+    const inputH = SCREEN_WIDTH * 0.12;
+
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    this._roundRect(ctx, inputX, inputY, inputW, inputH, 6);
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // 输入内容或提示
+    ctx.font = Math.floor(SCREEN_WIDTH * 0.035) + 'px sans-serif';
+    ctx.textAlign = 'left';
+    if (inputText) {
+      ctx.fillStyle = COLORS.UI.TITLE;
+      ctx.fillText(inputText, inputX + 10, inputY + inputH * 0.62);
+    } else {
+      ctx.fillStyle = COLORS.UI.SUBTITLE;
+      ctx.fillText('点击输入你的评论...', inputX + 10, inputY + inputH * 0.62);
+    }
+
+    // 字数提示
+    const charCount = (inputText || '').length;
+    ctx.fillStyle = charCount > COMMENT_CONFIG.MAX_LENGTH * 0.8 ? '#F44336' : COLORS.UI.SUBTITLE;
+    ctx.font = Math.floor(SCREEN_WIDTH * 0.025) + 'px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(charCount + '/' + COMMENT_CONFIG.MAX_LENGTH, inputX + inputW, inputY + inputH + SCREEN_WIDTH * 0.04);
+
+    // 点击输入区域弹出键盘
+    this._addButton('comment_input', inputX, inputY, inputW, inputH);
+
+    // 发布按钮
+    const btnY = inputY + inputH + SCREEN_WIDTH * 0.08;
+    const btnW = boxW * 0.4;
+    const btnH = SCREEN_WIDTH * 0.1;
+    const gap = SCREEN_WIDTH * 0.03;
+
+    // 取消
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    this._roundRect(ctx, boxX + boxW * 0.08, btnY, btnW, btnH, 6);
+    ctx.fillStyle = COLORS.UI.SUBTITLE;
+    ctx.font = 'bold ' + Math.floor(SCREEN_WIDTH * 0.04) + 'px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('取消', boxX + boxW * 0.08 + btnW / 2, btnY + btnH * 0.65);
+    this._addButton('comment_cancel', boxX + boxW * 0.08, btnY, btnW, btnH);
+
+    // 发布
+    const publishX = boxX + boxW - boxW * 0.08 - btnW;
+    ctx.fillStyle = inputText ? '#4CAF50' : COLORS.UI.BTN_DISABLED;
+    this._roundRect(ctx, publishX, btnY, btnW, btnH, 6);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText('发布', publishX + btnW / 2, btnY + btnH * 0.65);
+    if (inputText) {
+      this._addButton('comment_publish', publishX, btnY, btnW, btnH);
+    }
   }
 }
 
