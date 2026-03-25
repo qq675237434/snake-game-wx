@@ -147,7 +147,23 @@ const GameState = {
   PLAYING: 'playing',
   PAUSED: 'paused',
   GAME_OVER: 'gameOver',
-  SKIN_SELECT: 'skinSelect'
+  SKIN_SELECT: 'skinSelect',
+  COMMENTS: 'comments',
+  WRITING_COMMENT: 'writingComment'
+};
+
+/** 评论配置 */
+const COMMENT_CONFIG = {
+  /** 单条评论最大字数 */
+  MAX_LENGTH: 50,
+  /** 评论列表每页显示数 */
+  PAGE_SIZE: 10,
+  /** 最多保存评论数 */
+  MAX_STORE: 200,
+  /** 存储 Key */
+  STORAGE_KEY: 'snakeComments',
+  /** 点赞存储 Key */
+  LIKES_KEY: 'snakeCommentLikes'
 };
 
 /** 方向枚举 */
@@ -194,5 +210,6 @@ module.exports = {
   MIN_SPEED,
   OBSTACLE_COUNT,
   OBSTACLE_SAFE_DISTANCE,
-  AD_CONFIG
+  AD_CONFIG,
+  COMMENT_CONFIG
 };
