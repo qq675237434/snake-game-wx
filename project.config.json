@@ -1,0 +1,20 @@
+{
+  "description": "贪吃蛇小游戏",
+  "packOptions": {
+    "ignore": []
+  },
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "postcss": true,
+    "minified": true,
+    "newFeature": true
+  },
+  "compileType": "game",
+  "libVersion": "3.7.2",
+  "appid": "touristappid",
+  "projectname": "snake-game",
+  "simulatorType": "wechat",
+  "simulatorPluginLibVersion": {},
+  "condition": {}
+}
